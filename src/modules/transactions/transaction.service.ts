@@ -50,6 +50,12 @@ export class TransactionService {
   async list(filters: TransactionFilters): Promise<{ transactions: TransactionWithCategory[]; total: number }> {
     return transactionRepository.findWithFilters(filters);
   }
+
+  async clearAll(userId: string): Promise<number> {
+    const count = await transactionRepository.softDeleteAll(userId);
+    logger.info({ userId, count }, 'All transactions cleared');
+    return count;
+  }
 }
 
 export const transactionService = new TransactionService();

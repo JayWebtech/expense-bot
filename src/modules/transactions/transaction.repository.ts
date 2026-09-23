@@ -106,6 +106,14 @@ export class TransactionRepository {
     return { transactions: transactions as TransactionWithCategory[], total };
   }
 
+  async softDeleteAll(userId: string): Promise<number> {
+    const result = await prisma.transaction.updateMany({
+      where: { userId, isDeleted: false },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async checkDuplicate(params: {
     userId: string;
     amountMinor: bigint;

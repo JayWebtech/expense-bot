@@ -135,6 +135,10 @@ async function dispatchIntent(
       await handleSetReminder(ctx, result, user);
       break;
 
+    case 'CLEAR_ALL_TRANSACTIONS':
+      await handleClearAll(ctx, user);
+      break;
+
     case 'CREATE_CATEGORY':
       await handleCreateCategory(ctx, result, user);
       break;
@@ -631,6 +635,23 @@ async function handleSetReminder(
   await ctx.reply(
     `⏰ *Reminder set*\n\n${reminderData.description}\n_"${reminderData.message}"_`,
     { parse_mode: 'Markdown' },
+  );
+}
+
+async function handleClearAll(ctx: BotContext, user: UserWithSettings): Promise<void> {
+  const { total } = await transactionService.list({ userId: user.id, limit: 1 });
+  if (total === 0) {
+    await ctx.reply('You have no transactions to clear.');
+    return;
+  }
+
+  const keyboard = new InlineKeyboard()
+    .text('Yes, delete everything', 'confirm_clear_all')
+    .text('Cancel', 'cancel');
+
+  await ctx.reply(
+    `⚠️ *Are you sure?*\n\nThis will permanently delete all *${total} transaction${total === 1 ? '' : 's'}* (income + expenses). This cannot be undone.\n\nTap *Yes, delete everything* to confirm.`,
+    { parse_mode: 'Markdown', reply_markup: keyboard },
   );
 }
 

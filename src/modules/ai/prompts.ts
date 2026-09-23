@@ -92,6 +92,10 @@ EXPORT_PDF — user wants a PDF report of their finances:
 {"intent":"EXPORT_PDF","confidence":0.98,"needsConfirmation":false,"query":{"period":"this_month"}}
 Triggers: "generate a report", "make a report", "send me a PDF", "financial report", "monthly report", "get my report", "create report", "download report", "I want a report"
 
+CLEAR_ALL_TRANSACTIONS — user wants to wipe/delete ALL their financial records:
+{"intent":"CLEAR_ALL_TRANSACTIONS","confidence":0.97,"needsConfirmation":true}
+Triggers: "clear all entries", "delete everything", "reset my data", "wipe all transactions", "start fresh", "remove all my records", "clear all expenses and income", "delete all"
+
 SET_REMINDER — user wants to be reminded to log expenses at a recurring time:
 {"intent":"SET_REMINDER","confidence":0.9,"needsConfirmation":false,"reminder":{"message":"Record your expenses","cronExpr":"0 20 * * *","description":"Every day at 8pm"}}
 Triggers: "remind me every day at 8pm", "set a daily reminder", "notify me to record expenses", "remind me at night"

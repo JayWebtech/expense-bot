@@ -16,6 +16,7 @@ export const INTENT_TYPES = [
   'EXPORT_CSV',
   'EXPORT_PDF',
   'SET_REMINDER',
+  'CLEAR_ALL_TRANSACTIONS',
   'HELP',
   'UNKNOWN',
 ] as const;

@@ -180,6 +180,21 @@ export function registerBotHandlers(bot: Bot<BotContext>): void {
     }
   });
 
+  bot.callbackQuery('confirm_clear_all', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const userId = ctx.session.userId;
+    if (!userId) {
+      await ctx.editMessageText('Session expired. Please use /start.');
+      return;
+    }
+    try {
+      const count = await transactionService.clearAll(userId);
+      await ctx.editMessageText(`✅ Done. ${count} transaction${count === 1 ? '' : 's'} deleted.`);
+    } catch {
+      await ctx.reply('Something went wrong. Please try again.');
+    }
+  });
+
   bot.callbackQuery('cancel', async (ctx) => {
     await ctx.answerCallbackQuery();
     ctx.session.awaitingConfirmation = undefined;
