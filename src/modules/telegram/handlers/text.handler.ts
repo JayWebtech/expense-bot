@@ -12,6 +12,7 @@ import { handleSummary } from './summary.handler';
 import { handleHelp } from './help.handler';
 import { toMinorUnits, formatMoney } from '../../../shared/utils/money';
 import { getDateRange, formatDateInTz } from '../../../shared/utils/date';
+import { startTyping } from '../../../shared/utils/typing';
 import { Currency, CATEGORY_ICONS, SUPPORTED_CURRENCIES } from '../../../shared/types';
 import { AIResponse, ParsedTransaction } from '../../ai/ai.types';
 import { UserWithSettings } from '../../users/user.types';
@@ -55,18 +56,20 @@ export async function handleTextMessage(ctx: BotContext, overrideText?: string):
     return;
   }
 
-  await ctx.api.sendChatAction(ctx.chat!.id, 'typing');
+  const stopTyping = startTyping(ctx);
 
   let result: AIResponse;
   try {
     result = await aiService.processMessage(text, user.id, user);
   } catch (err) {
+    stopTyping();
     logger.error({ err, userId: user.id }, 'AI processing failed');
     await ctx.reply(
       "Sorry, I had trouble understanding that. Please try again or use a command (/help).",
     );
     return;
   }
+  stopTyping();
 
   try {
     await dispatchIntent(ctx, result, user);
