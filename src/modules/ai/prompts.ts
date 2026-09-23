@@ -46,48 +46,61 @@ Assign the most fitting category from the list based on the nature of the purcha
 CREATE_MULTIPLE_TRANSACTIONS (2+ transactions in one message):
 {"intent":"CREATE_MULTIPLE_TRANSACTIONS","confidence":0.95,"needsConfirmation":false,"transactions":[{"type":"EXPENSE","amount":5000,"currency":"NGN","category":"Food","description":"Lunch","date":"${today}"},{"type":"EXPENSE","amount":3000,"currency":"NGN","category":"Transport","description":"Uber","date":"${today}"}]}
 
-GET_BALANCE:
+GET_BALANCE — user wants to know their current balance, account total, or how much money they have:
 {"intent":"GET_BALANCE","confidence":0.99,"needsConfirmation":false}
+Triggers: "what's my balance", "how much do I have", "show my account", "balance", "net worth", "how much money", "current balance"
 
-GET_SUMMARY (period spending/income):
+GET_SUMMARY — user wants a spending or income overview for a period:
 {"intent":"GET_SUMMARY","confidence":0.97,"needsConfirmation":false,"query":{"period":"this_month","type":"EXPENSE"}}
 Valid periods: today, yesterday, this_week, last_week, this_month, last_month, this_year
+Triggers: "how much did I spend", "spending summary", "what did I spend this month", "show my expenses", "income summary", "financial overview", "how am I doing this month"
 
-GET_CATEGORY_SUMMARY:
+GET_CATEGORY_SUMMARY — user asks about spending in a specific category:
 {"intent":"GET_CATEGORY_SUMMARY","confidence":0.9,"needsConfirmation":false,"query":{"category":"Food","period":"this_month","type":"EXPENSE"}}
+Triggers: "how much on food", "what did I spend on transport", "show my food expenses"
 
-COMPARE_PERIODS:
+COMPARE_PERIODS — user wants to compare two time periods:
 {"intent":"COMPARE_PERIODS","confidence":0.9,"needsConfirmation":false,"query":{"period":"this_month","compareTo":"last_month","type":"EXPENSE"}}
+Triggers: "compare this month to last month", "how does this week compare", "am I spending more than last month"
 
-SET_BUDGET:
+SET_BUDGET — user wants to set a spending limit for a category:
 {"intent":"SET_BUDGET","confidence":0.97,"needsConfirmation":false,"budget":{"category":"Food","amount":80000,"currency":"NGN","period":"MONTHLY"}}
 Valid periods: WEEKLY, MONTHLY, YEARLY
+Triggers: "set food budget", "I want to limit my transport spending to", "budget 50k for groceries", "monthly budget for food"
 
-GET_BUDGET:
+GET_BUDGET — user wants to see all their budgets or check budget status:
 {"intent":"GET_BUDGET","confidence":0.95,"needsConfirmation":false}
+Triggers: "show my budgets", "what are my budget limits", "budget overview", "how is my budget"
 
-GET_BUDGET_STATUS (specific category budget check):
+GET_BUDGET_STATUS — user asks about a specific category's budget:
 {"intent":"GET_BUDGET_STATUS","confidence":0.9,"needsConfirmation":false,"query":{"category":"Food"}}
+Triggers: "how is my food budget", "am I over budget on transport", "check my food spending limit"
 
-UPDATE_TRANSACTION (edit last recorded transaction):
+UPDATE_TRANSACTION — user wants to correct the last recorded transaction:
 {"intent":"UPDATE_TRANSACTION","confidence":0.9,"needsConfirmation":false,"update":{"amount":12000}}
+Triggers: "change that to", "I meant", "correct the amount", "edit last transaction", "update it to"
 
-DELETE_TRANSACTION:
+DELETE_TRANSACTION — user wants to remove the last transaction:
 {"intent":"DELETE_TRANSACTION","confidence":0.85,"needsConfirmation":true}
+Triggers: "delete that", "remove last transaction", "undo", "that was wrong delete it", "cancel last entry"
 
-EXPORT_CSV:
+EXPORT_CSV — user wants a spreadsheet/CSV download of transactions:
 {"intent":"EXPORT_CSV","confidence":0.98,"needsConfirmation":false,"query":{"period":"this_month","type":"ALL"}}
+Triggers: "export to excel", "download my transactions", "give me a spreadsheet", "export CSV", "transaction history file", "export data"
 
-EXPORT_PDF:
+EXPORT_PDF — user wants a PDF report of their finances:
 {"intent":"EXPORT_PDF","confidence":0.98,"needsConfirmation":false,"query":{"period":"this_month"}}
+Triggers: "generate a report", "make a report", "send me a PDF", "financial report", "monthly report", "get my report", "create report", "download report", "I want a report"
 
-SET_REMINDER:
+SET_REMINDER — user wants to be reminded to log expenses at a recurring time:
 {"intent":"SET_REMINDER","confidence":0.9,"needsConfirmation":false,"reminder":{"message":"Record your expenses","cronExpr":"0 20 * * *","description":"Every day at 8pm"}}
+Triggers: "remind me every day at 8pm", "set a daily reminder", "notify me to record expenses", "remind me at night"
 
-HELP:
+HELP — user is asking what the bot can do or how to use it:
 {"intent":"HELP","confidence":0.99,"needsConfirmation":false}
+Triggers: "help", "what can you do", "how does this work", "show commands", "what are your features"
 
-UNKNOWN (off-topic or unclear):
+UNKNOWN — use ONLY when the message has absolutely no relation to personal finance, money, expenses, income, budgets, reports, or bot features. If there is ANY financial context, choose a specific intent instead:
 {"intent":"UNKNOWN","confidence":0.3,"needsConfirmation":false,"message":"I'm not sure what you mean. Try: 'Spent 5k on food' or 'What is my balance?'"}
 
 TRANSACTION TYPE:
