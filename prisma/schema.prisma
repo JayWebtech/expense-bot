@@ -1,0 +1,303 @@
+// Prisma schema for Expense Bot
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  REFUND
+  ADJUSTMENT
+}
+
+enum TransactionSource {
+  TEXT
+  VOICE
+  COMMAND
+  IMPORT
+  API
+  RECURRING
+  AI
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  telegramUserId   BigInt    @unique
+  telegramUsername String?
+  firstName        String
+  lastName         String?
+  timezone         String    @default("Africa/Lagos")
+  defaultCurrency  String    @default("NGN")
+  language         String    @default("en")
+  isActive         Boolean   @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  transactions          Transaction[]
+  categories            Category[]
+  budgets               Budget[]
+  recurringTransactions RecurringTransaction[]
+  reminders             Reminder[]
+  settings              UserSetting?
+  conversations         Conversation[]
+  aiInteractions        AIInteraction[]
+  auditLogs             AuditLog[]
+  reports               Report[]
+
+  @@index([telegramUserId])
+  @@map("users")
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  userId    String?   // null = system/default category visible to all users
+  name      String
+  icon      String?
+  color     String?
+  type      String?   // "INCOME" | "EXPENSE" | null means both
+  isDefault Boolean   @default(false)
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+  budgets      Budget[]
+  recurringTransactions RecurringTransaction[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([isDefault])
+  @@map("categories")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String
+  type            TransactionType
+  amountMinor     BigInt            // stored in currency minor units (e.g. kobo for NGN)
+  currency        String            @default("NGN")
+  categoryId      String?
+  description     String
+  notes           String?
+  transactionDate DateTime
+  source          TransactionSource @default(TEXT)
+  metadata        Json?             // flexible extra data (voice confidence, AI raw output, etc.)
+  isDeleted       Boolean           @default(false)
+  deletedAt       DateTime?
+  parentId        String?           // for split transactions
+  recurringId     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user      User                  @relation(fields: [userId], references: [id])
+  category  Category?             @relation(fields: [categoryId], references: [id])
+  parent    Transaction?          @relation("TransactionSplits", fields: [parentId], references: [id])
+  splits    Transaction[]         @relation("TransactionSplits")
+  recurring RecurringTransaction? @relation(fields: [recurringId], references: [id])
+
+  @@index([userId])
+  @@index([userId, transactionDate])
+  @@index([userId, type])
+  @@index([userId, categoryId])
+  @@index([currency])
+  @@index([createdAt])
+  @@index([userId, isDeleted])
+  @@map("transactions")
+}
+
+model Budget {
+  id          String       @id @default(cuid())
+  userId      String
+  categoryId  String?
+  name        String
+  amountMinor BigInt
+  currency    String
+  period      BudgetPeriod @default(MONTHLY)
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean      @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([userId])
+  @@index([userId, categoryId])
+  @@index([isActive])
+  @@map("budgets")
+}
+
+model RecurringTransaction {
+  id              String          @id @default(cuid())
+  userId          String
+  type            TransactionType
+  amountMinor     BigInt
+  currency        String
+  categoryId      String?
+  description     String
+  frequency       String          // cron expression or named frequency (MONTHLY, WEEKLY, etc.)
+  nextDueDate     DateTime
+  lastProcessedAt DateTime?
+  isActive        Boolean         @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  category     Category?     @relation(fields: [categoryId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([nextDueDate])
+  @@index([isActive])
+  @@map("recurring_transactions")
+}
+
+model Reminder {
+  id         String    @id @default(cuid())
+  userId     String
+  message    String
+  cronExpr   String
+  timezone   String
+  isActive   Boolean   @default(true)
+  lastSentAt DateTime?
+  nextSendAt DateTime?
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isActive, nextSendAt])
+  @@map("reminders")
+}
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency String
+  toCurrency   String
+  rate         Decimal  @db.Decimal(20, 8)
+  provider     String
+  fetchedAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([fromCurrency, toCurrency, provider, fetchedAt])
+  @@index([fromCurrency, toCurrency])
+  @@index([fetchedAt])
+  @@map("exchange_rates")
+}
+
+model UserSetting {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  dailyReminderEnabled Boolean  @default(false)
+  dailyReminderTime    String?  // e.g. "20:00"
+  defaultReportPeriod  String   @default("MONTHLY")
+  notificationsEnabled Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_settings")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  context   Json     // lightweight recent conversation context for AI continuity
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("conversations")
+}
+
+model AIInteraction {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  model     String
+  intent    String?
+  inputHash String?  // SHA-256 hash of the input — not the raw text, for privacy
+  output    Json?
+  tokens    Int?
+  latencyMs Int?
+  success   Boolean  @default(true)
+  error     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_interactions")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Report {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // "PDF" | "CSV"
+  period    String
+  startDate DateTime
+  endDate   DateTime
+  filePath  String?
+  fileSize  Int?
+  status    String    @default("PENDING") // PENDING | COMPLETED | FAILED
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([status])
+  @@map("reports")
+}
