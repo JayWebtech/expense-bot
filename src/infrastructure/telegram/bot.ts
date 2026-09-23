@@ -10,6 +10,7 @@ export interface SessionData {
     type: string;
     data: unknown;
     expiresAt: number;
+    skipDuplicateCheck?: boolean;
   };
   onboardingStep?: string;
 }

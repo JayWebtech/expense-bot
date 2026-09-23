@@ -25,26 +25,26 @@ export async function handleStart(ctx: BotContext): Promise<void> {
     const name = telegramUser.first_name;
 
     const keyboard = new InlineKeyboard()
-      .text('📊 View Balance', 'balance')
-      .text('💡 Help', 'help')
+      .text('View Balance', 'balance')
+      .text('Help', 'help')
       .row()
-      .text('⚙️ Settings', 'settings')
-      .text('📋 Categories', 'categories');
+      .text('Settings', 'settings')
+      .text('Categories', 'categories');
 
     await ctx.reply(
       `👋 ${greeting}, *${name}*!\n\n` +
-        `I'm your personal finance assistant. I help you track income, expenses, and understand your spending patterns.\n\n` +
-        `*What I can do:*\n` +
-        `• Record transactions from natural text\n` +
-        `• Process voice notes\n` +
-        `• Generate reports (PDF/CSV)\n` +
-        `• Track budgets and set reminders\n` +
-        `• Answer financial questions\n\n` +
-        `*Quick start:*\n` +
-        `Just send me a message like:\n` +
-        `_"Spent ₦5,000 on lunch"_\n` +
-        `_"Received ₦200,000 salary today"_\n\n` +
-        `Type /help to see all commands.`,
+      `I'm your personal finance assistant. I help you track income, expenses, and understand your spending patterns.\n\n` +
+      `*What I can do:*\n` +
+      `• Record transactions from natural text\n` +
+      `• Process voice notes\n` +
+      `• Generate reports (PDF/CSV)\n` +
+      `• Track budgets and set reminders\n` +
+      `• Answer financial questions\n\n` +
+      `*Quick start:*\n` +
+      `Just send me a message like:\n` +
+      `_"Spent ₦5,000 on lunch"_\n` +
+      `_"Received ₦200,000 salary today"_\n\n` +
+      `Type /help to see all commands.`,
       {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
