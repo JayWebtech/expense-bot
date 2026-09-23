@@ -46,7 +46,7 @@ export function registerBotHandlers(bot: Bot<BotContext>): void {
       if (Date.now() > pending.expiresAt) {
         ctx.session.awaitingConfirmation = undefined;
         // Fall through to normal text handling
-      } else if (text === 'yes' || text === 'y' || text === 'confirm' || text === 'ok') {
+      } else if (text === 'yes' || text === 'y' || text === 'confirm' || text === 'ok' || text === 'sure') {
         const telegramUser = ctx.from;
         if (!telegramUser) return;
         try {
@@ -150,6 +150,34 @@ export function registerBotHandlers(bot: Bot<BotContext>): void {
   bot.callbackQuery('categories', async (ctx) => {
     await ctx.answerCallbackQuery();
     await handleCategories(ctx);
+  });
+
+  // Force-record expense even when balance is low/zero
+  bot.callbackQuery('force_expense', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const pending = ctx.session.awaitingConfirmation;
+    if (!pending || Date.now() > pending.expiresAt) {
+      await ctx.editMessageText('This confirmation has expired. Please try again.').catch(() => null);
+      return;
+    }
+
+    ctx.session.awaitingConfirmation = undefined;
+    const telegramUser = ctx.from;
+    if (!telegramUser) return;
+
+    try {
+      const user = await userService.findOrCreateFromTelegram({
+        telegramUserId: BigInt(telegramUser.id),
+        telegramUsername: telegramUser.username,
+        firstName: telegramUser.first_name,
+        lastName: telegramUser.last_name,
+      });
+      await ctx.editMessageText('Processing...').catch(() => null);
+      await processPendingConfirmation(ctx, { ...pending, skipBalanceCheck: true }, user);
+    } catch (err) {
+      logger.error({ err }, 'force_expense callback failed');
+      await ctx.reply('Something went wrong. Please try again.');
+    }
   });
 
   bot.callbackQuery('cancel', async (ctx) => {

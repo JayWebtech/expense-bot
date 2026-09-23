@@ -1,9 +1,15 @@
 import PDFDocument from 'pdfkit';
 import { format } from 'date-fns';
-import { formatMoney } from '../../shared/utils/money';
+import { fromMinorUnits } from '../../shared/utils/money';
 import { Currency } from '../../shared/types';
 import { TransactionWithCategory } from '../transactions/transaction.repository';
 import { FinancialSummary } from '../analytics/analytics.service';
+
+/** PDF-safe money formatter — uses ISO code instead of symbol (avoids font glyph issues). */
+function pdfMoney(amountMinor: bigint, currency: Currency): string {
+  const major = fromMinorUnits(amountMinor, currency);
+  return `${currency} ${major.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export async function generatePDF(
   transactions: TransactionWithCategory[],
@@ -32,14 +38,14 @@ export async function generatePDF(
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
 
-    doc.text('Income:', 50); doc.moveUp(); doc.text(formatMoney(summary.income, cur), col2); doc.moveDown(0.3);
-    doc.text('Expenses:', 50); doc.moveUp(); doc.text(formatMoney(summary.expenses, cur), col2); doc.moveDown(0.3);
+    doc.text('Income:', 50); doc.moveUp(); doc.text(pdfMoney(summary.income, cur), col2); doc.moveDown(0.3);
+    doc.text('Expenses:', 50); doc.moveUp(); doc.text(pdfMoney(summary.expenses, cur), col2); doc.moveDown(0.3);
 
     const netSign = summary.net >= 0n ? '+' : '-';
     const absNet = summary.net < 0n ? -summary.net : summary.net;
     doc.font('Helvetica-Bold').text('Net:', 50);
     doc.moveUp();
-    doc.text(`${netSign}${formatMoney(absNet, cur)}`, col2);
+    doc.text(`${netSign}${pdfMoney(absNet, cur)}`, col2);
     doc.font('Helvetica').moveDown();
 
     // Category breakdown
@@ -51,7 +57,7 @@ export async function generatePDF(
       for (const cat of summary.byCategory.slice(0, 10)) {
         doc.fontSize(11).font('Helvetica');
         doc.text(cat.categoryName, 50); doc.moveUp();
-        doc.text(`${formatMoney(cat.total, cur)}  (${Math.round(cat.percentage)}%)`, col2);
+        doc.text(`${pdfMoney(cat.total, cur)}  (${Math.round(cat.percentage)}%)`, col2);
         doc.moveDown(0.3);
       }
       doc.moveDown();
@@ -80,7 +86,7 @@ export async function generatePDF(
         doc.text(tx.type, 125, doc.y, { width: 65 }); doc.moveUp();
         doc.text(tx.category?.name ?? 'Other', 190, doc.y, { width: 100 }); doc.moveUp();
         doc.text(tx.description.slice(0, 22), 290, doc.y, { width: 145 }); doc.moveUp();
-        doc.text(`${sign}${formatMoney(tx.amountMinor, cur)}`, 435, doc.y, { width: 110, align: 'right' });
+        doc.text(`${sign}${pdfMoney(tx.amountMinor, cur)}`, 435, doc.y, { width: 110, align: 'right' });
         doc.moveDown(0.3);
       }
     }

@@ -11,6 +11,7 @@ export interface SessionData {
     data: unknown;
     expiresAt: number;
     skipDuplicateCheck?: boolean;
+    skipBalanceCheck?: boolean;
   };
   onboardingStep?: string;
 }

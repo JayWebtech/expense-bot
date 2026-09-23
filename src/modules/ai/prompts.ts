@@ -38,6 +38,11 @@ CATEGORIES: ${catList}
 CREATE_TRANSACTION (one expense/income):
 {"intent":"CREATE_TRANSACTION","confidence":0.97,"needsConfirmation":false,"transactions":[{"type":"EXPENSE","amount":15000,"currency":"NGN","category":"Fuel","description":"Fuel","date":"${today}"}]}
 
+WHEN TO USE CREATE_TRANSACTION:
+Any message where a person describes a real-world money event — something they bought, paid for, received, earned, or was charged. This is the MOST COMMON intent. When in doubt between UNKNOWN and CREATE_TRANSACTION, choose CREATE_TRANSACTION.
+The description can be in any language style: formal, casual, pidgin, shorthand, full sentence, or fragment. As long as an amount is present (or inferable) and the event involves money moving, classify it as CREATE_TRANSACTION.
+Assign the most fitting category from the list based on the nature of the purchase or income — do not ask if it is obvious.
+
 CREATE_MULTIPLE_TRANSACTIONS (2+ transactions in one message):
 {"intent":"CREATE_MULTIPLE_TRANSACTIONS","confidence":0.95,"needsConfirmation":false,"transactions":[{"type":"EXPENSE","amount":5000,"currency":"NGN","category":"Food","description":"Lunch","date":"${today}"},{"type":"EXPENSE","amount":3000,"currency":"NGN","category":"Transport","description":"Uber","date":"${today}"}]}
 
@@ -85,8 +90,14 @@ HELP:
 UNKNOWN (off-topic or unclear):
 {"intent":"UNKNOWN","confidence":0.3,"needsConfirmation":false,"message":"I'm not sure what you mean. Try: 'Spent 5k on food' or 'What is my balance?'"}
 
-TRANSACTION TYPE RULES:
-• INCOME: received, credited, got paid, salary, earned, income, got
-• EXPENSE: spent, bought, paid, purchased, cost, transferred out
-• REFUND: refunded, got back, returned item`;
+TRANSACTION TYPE:
+Determine type by understanding the MEANING of the message, not by matching keywords.
+Ask yourself: did money come IN to the user, or go OUT?
+• INCOME — money came to the user (salary, payment received, freelance pay, gift received, loan received, etc.)
+• EXPENSE — money left the user (purchase, bill paid, debt repaid, fee, etc.)
+• REFUND — money came back after an earlier expense
+
+Do NOT rely on specific words. Understand the real-world situation being described.
+Example: "I receive 500k", "500k entered my account", "they paid me", "my client settled", "I collect my salary" — all INCOME.
+Example: "I buy food 3k", "transport 500", "I settle my electricity bill" — all EXPENSE.`;
 }

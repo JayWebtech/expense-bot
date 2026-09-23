@@ -1,4 +1,4 @@
-import { InlineKeyboard } from 'grammy';
+import { InlineKeyboard, InputFile } from 'grammy';
 import { BotContext } from '../../../infrastructure/telegram/bot';
 import { userService } from '../../users/user.service';
 import { aiService } from '../../ai/ai.service';
@@ -21,8 +21,8 @@ import { config } from '../../../config';
 import { prisma } from '../../../infrastructure/database/client';
 import { format } from 'date-fns';
 
-export async function handleTextMessage(ctx: BotContext): Promise<void> {
-  const text = ctx.message?.text;
+export async function handleTextMessage(ctx: BotContext, overrideText?: string): Promise<void> {
+  const text = overrideText ?? ctx.message?.text;
   if (!text) return;
 
   const telegramUser = ctx.from;
@@ -183,6 +183,60 @@ async function handleCreateTransaction(
   if (!SUPPORTED_CURRENCIES.includes(currency)) {
     await ctx.reply(`Unsupported currency: ${currency}. Supported: ${SUPPORTED_CURRENCIES.join(', ')}`);
     return;
+  }
+
+  const skipBalanceCheck = !!(result as any)._skipBalanceCheck;
+
+  // ── Balance guard for expenses ────────────────────────────────────────────
+  if (!skipBalanceCheck) {
+    const hasExpense = txData.some((t) => t.type === 'EXPENSE');
+    if (hasExpense) {
+      const balance = await analyticsService.getBalance(user.id, currency);
+
+      if (balance.net <= 0n) {
+        const keyboard = new InlineKeyboard().text('Record anyway', 'force_expense').text('Cancel', 'cancel');
+        await ctx.reply(
+          `💳 *Insufficient balance*\n\n` +
+            `Your current ${currency} balance is *${formatMoney(balance.net < 0n ? -balance.net : 0n, currency)}* (zero${balance.net < 0n ? ', already overdrawn' : ''}).\n\n` +
+            `Record some income first:\n` +
+            `_"Received ₦500,000 salary today"_\n\n` +
+            `Or tap *Record anyway* if you want to track this expense regardless.`,
+          { parse_mode: 'Markdown', reply_markup: keyboard },
+        );
+        // Store for force-record
+        ctx.session.awaitingConfirmation = {
+          type: 'CREATE_TRANSACTION',
+          data: { ...result, _skipBalanceCheck: true },
+          expiresAt: Date.now() + 5 * 60 * 1000,
+          skipBalanceCheck: true,
+        };
+        return;
+      }
+
+      // Calculate total expense amount
+      const totalExpense = txData
+        .filter((t) => t.type === 'EXPENSE')
+        .reduce((sum, t) => sum + toMinorUnits(t.amount, currency), 0n);
+
+      if (totalExpense > balance.net) {
+        const afterBalance = balance.net - totalExpense;
+        const keyboard = new InlineKeyboard().text('Record anyway', 'force_expense').text('Cancel', 'cancel');
+        await ctx.reply(
+          `⚠️ *Balance warning*\n\n` +
+            `Recording ${formatMoney(totalExpense, currency)} would bring your balance from ` +
+            `${formatMoney(balance.net, currency)} to *-${formatMoney(-afterBalance, currency)}*.\n\n` +
+            `Reply "yes" to record anyway, or tap *Cancel*.`,
+          { parse_mode: 'Markdown', reply_markup: keyboard },
+        );
+        ctx.session.awaitingConfirmation = {
+          type: 'CREATE_TRANSACTION',
+          data: { ...result, _skipBalanceCheck: true },
+          expiresAt: Date.now() + 5 * 60 * 1000,
+          skipBalanceCheck: true,
+        };
+        return;
+      }
+    }
   }
 
   const created = [];
@@ -469,7 +523,7 @@ async function handleExportCSV(
     const period = result.query?.period ?? 'this_month';
     const exportResult = await exportService.exportCSV(user, period);
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(exportResult.url, { caption: `📁 Transaction export · ${Math.round(exportResult.bytes / 1024)} KB` });
+    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), { caption: `📁 Transaction export · ${Math.round(exportResult.bytes / 1024)} KB` });
   } catch (err) {
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
     await ctx.reply('Failed to generate export. Make sure Cloudinary is configured.');
@@ -487,7 +541,7 @@ async function handleExportPDF(
     const period = result.query?.period ?? 'this_month';
     const exportResult = await exportService.exportPDF(user, period);
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(exportResult.url, { caption: `📄 Financial report · ${Math.round(exportResult.bytes / 1024)} KB` });
+    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), { caption: `📄 Financial report · ${Math.round(exportResult.bytes / 1024)} KB` });
   } catch (err) {
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
     await ctx.reply('Failed to generate report. Make sure Cloudinary is configured.');
@@ -601,7 +655,8 @@ export async function processPendingConfirmation(
   ctx.session.awaitingConfirmation = undefined;
 
   if (pending.type === 'CREATE_TRANSACTION') {
-    const result = pending.data as AIResponse;
+    const result = pending.data as AIResponse & { _skipBalanceCheck?: boolean };
+
     if (pending.skipDuplicateCheck) {
       // Force-create skipping duplicate check
       const txData = result.transactions ?? [];
@@ -620,11 +675,14 @@ export async function processPendingConfirmation(
             transactionDate: new Date(tx.date),
             source: 'TEXT',
           },
-          true,
+          true, // skip duplicate check
         );
         ctx.session.lastTransactionId = savedTx.id;
       }
-      await ctx.reply(`✅ Transaction recorded (duplicate override).`);
+      await ctx.reply(`✅ Transaction recorded.`);
+    } else if (pending.skipBalanceCheck || result._skipBalanceCheck) {
+      // Force-create skipping balance check (user confirmed)
+      await handleCreateTransaction(ctx, { ...result, _skipBalanceCheck: true } as any, user);
     } else {
       await handleCreateTransaction(ctx, result, user);
     }

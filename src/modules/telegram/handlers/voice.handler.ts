@@ -54,15 +54,8 @@ export async function handleVoiceMessage(ctx: BotContext): Promise<void> {
         { parse_mode: 'Markdown' },
       );
 
-      // Inject the transcribed text as if the user typed it
-      const syntheticCtx = {
-        ...ctx,
-        message: {
-          ...ctx.message,
-          text: result.text,
-        },
-      } as BotContext;
-      await handleTextMessage(syntheticCtx);
+      // Pass the real ctx with transcribed text as override — spreading ctx would lose prototype methods
+      await handleTextMessage(ctx, result.text);
     } else {
       const keyboard = new InlineKeyboard()
         .text('Process this', `voice_confirm`)

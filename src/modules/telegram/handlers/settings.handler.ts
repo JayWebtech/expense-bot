@@ -26,10 +26,9 @@ export async function handleSettings(ctx: BotContext): Promise<void> {
 
     await ctx.reply(
       `⚙️ *Settings*\n\n` +
-        `*Name:* ${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}\n` +
-        `*Currency:* ${user.defaultCurrency}\n` +
-        `*Timezone:* ${user.timezone}\n\n` +
-        `_Each friend who starts the bot gets their own private account — your data is completely separate._`,
+      `*Name:* ${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}\n` +
+      `*Currency:* ${user.defaultCurrency}\n` +
+      `*Timezone:* ${user.timezone}\n\n`,
       { parse_mode: 'Markdown', reply_markup: keyboard },
     );
   } catch (err) {

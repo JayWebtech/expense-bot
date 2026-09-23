@@ -14,6 +14,7 @@ export interface ExportResult {
   bytes: number;
   filename: string;
   type: 'PDF' | 'CSV';
+  buffer: Buffer;
 }
 
 export class ExportService {
@@ -51,7 +52,7 @@ export class ExportService {
       })
       .catch(() => null);
 
-    return { url: result.secureUrl, publicId: result.publicId, bytes: result.bytes, filename: `expenses-${slug}.csv`, type: 'CSV' };
+    return { url: result.secureUrl, publicId: result.publicId, bytes: result.bytes, filename: `expenses-${slug}.csv`, type: 'CSV', buffer };
   }
 
   async exportPDF(user: UserWithSettings, period = 'this_month'): Promise<ExportResult> {
@@ -89,7 +90,7 @@ export class ExportService {
       })
       .catch(() => null);
 
-    return { url: result.secureUrl, publicId: result.publicId, bytes: result.bytes, filename: `report-${slug}.pdf`, type: 'PDF' };
+    return { url: result.secureUrl, publicId: result.publicId, bytes: result.bytes, filename: `report-${slug}.pdf`, type: 'PDF', buffer };
   }
 }
 
