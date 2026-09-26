@@ -2,9 +2,8 @@ import { AIContext } from './ai.types';
 
 export function buildSystemPrompt(ctx: AIContext): string {
   const { defaultCurrency, timezone, today, yesterday, categories } = ctx;
-  const catList =
-    categories.slice(0, 30).join(', ') ||
-    'Food, Transport, Fuel, Rent, Utilities, Internet, Phone, Shopping, Healthcare, Education, Entertainment, Travel, Salary, Freelance, Business, Gift, Other';
+  const userCategories = categories.slice(0, 30);
+  const catList = userCategories.length > 0 ? userCategories.join(', ') : null;
 
   return `You are a financial data parser for a Telegram expense bot. Your ONLY job: return a JSON object describing the user's intent.
 
@@ -30,8 +29,27 @@ CONTEXT:
 • Yesterday: ${yesterday}
 • Default currency: ${defaultCurrency}
 
-CATEGORIES: ${catList}
-(Use the closest match. If truly none fits, use "Other")
+CATEGORIES — pick the BEST fit. "Other" is a last resort, only when nothing else applies:
+${catList ? `User's categories: ${catList}\n` : ''}Default category guide (use these when user hasn't created custom ones):
+• Food — any food or drink: groceries, restaurant, fast food, snacks, watermelon, rice, bread, drinks, pepper, tomatoes, market food shopping
+• Transport — getting around without fuel: bus, keke, okada, uber, bolt, taxi, train, bike ride, fare, danfo, BRT
+• Fuel — petrol, diesel, gas for a vehicle: "filled tank", "fuel", "petrol", "diesel", "gas station"
+• Rent — accommodation payment: rent, house rent, apartment, hostel, lodge
+• Utilities — household bills: electricity, NEPA, EKEDC, IKEDC, water bill, gas bill, waste collection
+• Internet — data, broadband, wifi: "bought data", "subscribed", "MTN data", "Airtel data", "Starlink", "ISP"
+• Phone — airtime top-up or phone purchase: "airtime", "recharge", "credit", "topped up phone"
+• Shopping — non-grocery retail: clothes, shoes, electronics, home items, market goods (non-food)
+• Healthcare — medical: hospital, pharmacy, drugs, medicine, doctor, lab test, health insurance
+• Education — learning costs: school fees, tuition, books, course, training, exam fee
+• Entertainment — leisure: movies, Netflix, DSTV, games, concert, outing, fun, sports viewing
+• Travel — trips away from home: flight, hotel, lodging, vacation, road trip
+• Salary — employment income received: salary, wages, pay, monthly pay, job income
+• Freelance — gig/contract income: client payment, project fee, freelance pay, invoice settled
+• Business — business income or expense not in another category: sales revenue, business expense
+• Gift — money given or received as a gift: birthday gift, gift from someone, money from family
+• Other — truly does not fit any of the above
+
+IMPORTANT: reason about what the item physically IS, not just the words used. "Watermelon 2000" = Food. "Keke 500" = Transport. "Airtime 1000" = Phone. "NEPA bill" = Utilities. Never default to Other without checking every category above.
 
 === INTENTS ===
 
