@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { parseDateExpression, getDateRange, formatDateInTz } from '../../../src/shared/utils/date';
+import { parseDateExpression, getDateRange, formatDateInTz, buildDateSlug } from '../../../src/shared/utils/date';
 
 const TIMEZONE = 'Africa/Lagos';
 
@@ -97,6 +97,92 @@ describe('getDateRange', () => {
         range.endDate.getTime(),
       );
     }
+  });
+
+  it('parses month range e.g. "Jan - March"', () => {
+    const range = getDateRange('Jan - March', TIMEZONE);
+    expect(range.label).toBe('Jan – Mar 2026');
+    expect(range.startDate.toISOString()).toBe('2025-12-31T23:00:00.000Z'); // midnight in Lagos
+    expect(range.endDate.toISOString()).toBe('2026-03-31T22:59:59.999Z');
+  });
+
+  it('parses full year month range e.g. "Jan - Dec"', () => {
+    const range = getDateRange('Jan - Dec', TIMEZONE);
+    expect(range.label).toBe('Jan – Dec 2026');
+    expect(range.startDate.toISOString()).toBe('2025-12-31T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2026-12-31T22:59:59.999Z');
+  });
+
+  it('parses day + month range e.g. "12th jan - 5th March"', () => {
+    const range = getDateRange('12th jan - 5th March', TIMEZONE);
+    expect(range.label).toBe('Jan 12 – Mar 5, 2026');
+    expect(range.startDate.toISOString()).toBe('2026-01-11T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2026-03-05T22:59:59.999Z');
+  });
+
+  it('strips leading export/report keywords e.g. "export Jan - March"', () => {
+    const range = getDateRange('export Jan - March', TIMEZONE);
+    expect(range.label).toBe('Jan – Mar 2026');
+    expect(range.startDate.toISOString()).toBe('2025-12-31T23:00:00.000Z');
+  });
+
+  it('parses "Jan to March" with "to" separator', () => {
+    const range = getDateRange('Jan to March', TIMEZONE);
+    expect(range.label).toBe('Jan – Mar 2026');
+  });
+
+  it('parses explicit years e.g. "Jan 2025 - March 2025"', () => {
+    const range = getDateRange('Jan 2025 - March 2025', TIMEZONE);
+    expect(range.label).toBe('Jan – Mar 2025');
+    expect(range.startDate.toISOString()).toBe('2024-12-31T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2025-03-31T22:59:59.999Z');
+  });
+
+  it('parses single month e.g. "January"', () => {
+    const range = getDateRange('January', TIMEZONE);
+    expect(range.label).toBe('January 2026');
+    expect(range.startDate.toISOString()).toBe('2025-12-31T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2026-01-31T22:59:59.999Z');
+  });
+
+  it('parses single year e.g. "2025"', () => {
+    const range = getDateRange('2025', TIMEZONE);
+    expect(range.label).toBe('2025');
+    expect(range.startDate.toISOString()).toBe('2024-12-31T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2025-12-31T22:59:59.999Z');
+  });
+
+  it('parses quarters e.g. "Q1 2026"', () => {
+    const range = getDateRange('Q1 2026', TIMEZONE);
+    expect(range.label).toBe('Q1 2026');
+    expect(range.startDate.toISOString()).toBe('2025-12-31T23:00:00.000Z');
+    expect(range.endDate.toISOString()).toBe('2026-03-31T22:59:59.999Z');
+  });
+
+  it('parses relative "last 30 days"', () => {
+    const range = getDateRange('last 30 days', TIMEZONE);
+    expect(range.label).toBe('Last 30 Days');
+    expect(range.startDate.getTime()).toBeLessThan(range.endDate.getTime());
+  });
+});
+
+describe('buildDateSlug', () => {
+  it('builds month range slug for multi-month period', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    const end = new Date('2026-03-31T23:59:59Z');
+    expect(buildDateSlug(start, end)).toBe('2026-01_to_2026-03');
+  });
+
+  it('builds single month slug for full month', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    const end = new Date('2026-01-31T23:59:59Z');
+    expect(buildDateSlug(start, end)).toBe('2026-01');
+  });
+
+  it('builds day range slug for specific date range', () => {
+    const start = new Date('2026-01-12T00:00:00Z');
+    const end = new Date('2026-03-05T23:59:59Z');
+    expect(buildDateSlug(start, end)).toBe('2026-01-12_to_2026-03-05');
   });
 });
 
