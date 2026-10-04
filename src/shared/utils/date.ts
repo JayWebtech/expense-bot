@@ -382,21 +382,23 @@ export function getDateRange(period: string, timezone = 'Africa/Lagos'): DateRan
 /**
  * Build a human-friendly and filesystem-safe slug for date ranges (e.g. 2026-01_to_2026-03).
  */
-export function buildDateSlug(startDate: Date, endDate: Date): string {
-  const startDay = format(startDate, 'yyyy-MM-dd');
-  const endDay = format(endDate, 'yyyy-MM-dd');
+export function buildDateSlug(startDate: Date, endDate: Date, timezone = 'Africa/Lagos'): string {
+  const startZoned = toZonedTime(startDate, timezone);
+  const endZoned = toZonedTime(endDate, timezone);
+  const startDay = format(startZoned, 'yyyy-MM-dd');
+  const endDay = format(endZoned, 'yyyy-MM-dd');
   if (startDay === endDay) {
     return startDay;
   }
-  const startMonth = format(startDate, 'yyyy-MM');
-  const endMonth = format(endDate, 'yyyy-MM');
+  const startMonth = format(startZoned, 'yyyy-MM');
+  const endMonth = format(endZoned, 'yyyy-MM');
   if (startMonth === endMonth) {
-    if (format(startDate, 'dd') === '01' && format(endDate, 'dd') === format(endOfMonth(startDate), 'dd')) {
+    if (format(startZoned, 'dd') === '01' && format(endZoned, 'dd') === format(endOfMonth(startZoned), 'dd')) {
       return startMonth;
     }
-    return `${startDay}_to_${format(endDate, 'dd')}`;
+    return `${startDay}_to_${format(endZoned, 'dd')}`;
   }
-  if (format(startDate, 'dd') === '01' && format(endDate, 'dd') === format(endOfMonth(endDate), 'dd')) {
+  if (format(startZoned, 'dd') === '01' && format(endZoned, 'dd') === format(endOfMonth(endZoned), 'dd')) {
     return `${startMonth}_to_${endMonth}`;
   }
   return `${startDay}_to_${endDay}`;

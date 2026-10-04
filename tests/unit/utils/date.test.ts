@@ -168,21 +168,18 @@ describe('getDateRange', () => {
 
 describe('buildDateSlug', () => {
   it('builds month range slug for multi-month period', () => {
-    const start = new Date('2026-01-01T00:00:00Z');
-    const end = new Date('2026-03-31T23:59:59Z');
-    expect(buildDateSlug(start, end)).toBe('2026-01_to_2026-03');
+    const range = getDateRange('Jan - March', TIMEZONE);
+    expect(buildDateSlug(range.startDate, range.endDate, TIMEZONE)).toBe('2026-01_to_2026-03');
   });
 
   it('builds single month slug for full month', () => {
-    const start = new Date('2026-01-01T00:00:00Z');
-    const end = new Date('2026-01-31T23:59:59Z');
-    expect(buildDateSlug(start, end)).toBe('2026-01');
+    const range = getDateRange('January', TIMEZONE);
+    expect(buildDateSlug(range.startDate, range.endDate, TIMEZONE)).toBe('2026-01');
   });
 
   it('builds day range slug for specific date range', () => {
-    const start = new Date('2026-01-12T00:00:00Z');
-    const end = new Date('2026-03-05T23:59:59Z');
-    expect(buildDateSlug(start, end)).toBe('2026-01-12_to_2026-03-05');
+    const range = getDateRange('12th jan - 5th March', TIMEZONE);
+    expect(buildDateSlug(range.startDate, range.endDate, TIMEZONE)).toBe('2026-01-12_to_2026-03-05');
   });
 });
 
