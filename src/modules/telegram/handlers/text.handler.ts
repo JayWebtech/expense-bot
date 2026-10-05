@@ -10,6 +10,7 @@ import { exportService } from '../../exports/export.service';
 import { handleBalance } from './balance.handler';
 import { handleSummary } from './summary.handler';
 import { handleHelp } from './help.handler';
+import { handleReport, handleExport } from './report.handler';
 import { toMinorUnits, formatMoney } from '../../../shared/utils/money';
 import { getDateRange, formatDateInTz } from '../../../shared/utils/date';
 import { startTyping } from '../../../shared/utils/typing';
@@ -41,6 +42,23 @@ export async function handleTextMessage(ctx: BotContext, overrideText?: string):
   } catch (err) {
     logger.error({ err }, 'Failed to find/create user in text handler');
     await ctx.reply('Something went wrong. Please try /start again.');
+    return;
+  }
+
+  // Fast path for explicit export and report phrases (works even without AI configured)
+  const exportMatch = text.match(/^(?:export|download records?|export records?|csv)\s*(.*)$/i);
+  if (exportMatch) {
+    const rangeArg = exportMatch[1].trim();
+    ctx.match = rangeArg;
+    await handleExport(ctx);
+    return;
+  }
+
+  const reportMatch = text.match(/^(?:report|pdf|pdf report|financial report)\s*(.*)$/i);
+  if (reportMatch) {
+    const rangeArg = reportMatch[1].trim();
+    ctx.match = rangeArg;
+    await handleReport(ctx);
     return;
   }
 
@@ -306,6 +324,7 @@ async function handleCreateTransaction(
       `✅ *${label} recorded*\n\n` +
         `*${formatMoney(amountMinor, currency)}*\n` +
         `${icon} ${cat.name}\n` +
+        `📝 ${escapeMarkdown(tx.description)}\n` +
         `📅 ${dateStr}`,
       { parse_mode: 'Markdown', reply_markup: keyboard },
     );
@@ -320,7 +339,8 @@ async function handleCreateTransaction(
     let text = `✅ *${created.length} transactions recorded*\n\n`;
     for (const { tx, amountMinor } of created) {
       const icon = CATEGORY_ICONS[tx.category] ?? (tx.type === 'INCOME' ? '💵' : '📌');
-      text += `${icon} ${tx.category} — ${formatMoney(amountMinor, currency)}\n`;
+      text += `${icon} *${tx.category}* — ${formatMoney(amountMinor, currency)}\n` +
+              `    _${escapeMarkdown(tx.description)}_\n`;
     }
     await ctx.reply(text, { parse_mode: 'Markdown' });
   }
@@ -528,13 +548,32 @@ async function handleExportCSV(
   const processingMsg = await ctx.reply('📁 Generating CSV export...');
   try {
     const period = result.query?.period ?? 'this_month';
-    const exportResult = await exportService.exportCSV(user, period);
+    const exportResult = await exportService.exportCSV(user, {
+      period,
+      startDate: result.query?.startDate,
+      endDate: result.query?.endDate,
+    });
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), { caption: `📁 Transaction export · ${Math.round(exportResult.bytes / 1024)} KB` });
+
+    if (exportResult.count === 0) {
+      await ctx.reply(`ℹ️ No transactions found for *${exportResult.label}*.`, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    let caption = `📁 *Transaction Export* (${exportResult.label})\n📊 ${exportResult.count} transactions · ${Math.round(exportResult.bytes / 1024)} KB`;
+    if (period === 'this_month') {
+      caption += `\n\n💡 _Tip: You can export any range, e.g. /export Jan - March, /export Jan - Dec, or /export 12th Jan - 5th March_`;
+    }
+
+    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), {
+      caption,
+      parse_mode: 'Markdown',
+    });
   } catch (err) {
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.reply('Failed to generate export. Make sure Cloudinary is configured.');
-    logger.error({ err }, 'CSV export failed');
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err, message }, 'CSV export failed');
+    await ctx.reply(`❌ Failed to generate export:\n\`${message}\``, { parse_mode: 'Markdown' });
   }
 }
 
@@ -546,14 +585,37 @@ async function handleExportPDF(
   const processingMsg = await ctx.reply('📄 Generating PDF report...');
   try {
     const period = result.query?.period ?? 'this_month';
-    const exportResult = await exportService.exportPDF(user, period);
+    const exportResult = await exportService.exportPDF(user, {
+      period,
+      startDate: result.query?.startDate,
+      endDate: result.query?.endDate,
+    });
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), { caption: `📄 Financial report · ${Math.round(exportResult.bytes / 1024)} KB` });
+
+    if (exportResult.count === 0) {
+      await ctx.reply(`ℹ️ No transactions found for *${exportResult.label}*.`, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    let caption = `📄 *Financial Report* (${exportResult.label})\n📊 ${exportResult.count} transactions · ${Math.round(exportResult.bytes / 1024)} KB`;
+    if (period === 'this_month') {
+      caption += `\n\n💡 _Tip: You can export any range, e.g. /report Jan - March, /report Jan - Dec, or /report 12th Jan - 5th March_`;
+    }
+
+    await ctx.replyWithDocument(new InputFile(exportResult.buffer, exportResult.filename), {
+      caption,
+      parse_mode: 'Markdown',
+    });
   } catch (err) {
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.reply('Failed to generate report. Make sure Cloudinary is configured.');
-    logger.error({ err }, 'PDF export failed');
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err, message }, 'PDF export failed');
+    await ctx.reply(`❌ Failed to generate report:\n\`${message}\``, { parse_mode: 'Markdown' });
   }
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/[_*`\[\]]/g, '\\$&');
 }
 
 async function handleUpdateTransaction(

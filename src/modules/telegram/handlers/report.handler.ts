@@ -9,6 +9,9 @@ export async function handleReport(ctx: BotContext): Promise<void> {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
 
+  const match = ctx.match?.toString().trim();
+  const period = match && match.length > 0 ? match : 'this_month';
+
   const stopTyping = startTyping(ctx);
   const processingMsg = await ctx.reply('📄 Generating your PDF report...');
 
@@ -21,11 +24,25 @@ export async function handleReport(ctx: BotContext): Promise<void> {
     });
     ctx.session.userId = user.id;
 
-    const result = await exportService.exportPDF(user, 'this_month');
+    const result = await exportService.exportPDF(user, period);
     stopTyping();
 
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(new InputFile(result.buffer, result.filename), { caption: `📄 Financial report — ${Math.round(result.bytes / 1024)} KB` });
+
+    if (result.count === 0) {
+      await ctx.reply(`ℹ️ No transactions found for *${result.label}*.`, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    let caption = `📄 *Financial Report* (${result.label})\n📊 ${result.count} transactions · ${Math.round(result.bytes / 1024)} KB`;
+    if (period === 'this_month') {
+      caption += `\n\n💡 _Tip: You can export any range, e.g. /report Jan - March, /report Jan - Dec, or /report 12th Jan - 5th March_`;
+    }
+
+    await ctx.replyWithDocument(new InputFile(result.buffer, result.filename), {
+      caption,
+      parse_mode: 'Markdown',
+    });
   } catch (err) {
     stopTyping();
     const message = err instanceof Error ? err.message : String(err);
@@ -39,6 +56,9 @@ export async function handleExport(ctx: BotContext): Promise<void> {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
 
+  const match = ctx.match?.toString().trim();
+  const period = match && match.length > 0 ? match : 'this_month';
+
   const stopTyping = startTyping(ctx);
   const processingMsg = await ctx.reply('📁 Generating CSV export...');
 
@@ -51,11 +71,25 @@ export async function handleExport(ctx: BotContext): Promise<void> {
     });
     ctx.session.userId = user.id;
 
-    const result = await exportService.exportCSV(user, 'this_month');
+    const result = await exportService.exportCSV(user, period);
     stopTyping();
 
     await ctx.api.deleteMessage(ctx.chat!.id, processingMsg.message_id).catch(() => null);
-    await ctx.replyWithDocument(new InputFile(result.buffer, result.filename), { caption: `📁 Transaction export — ${Math.round(result.bytes / 1024)} KB` });
+
+    if (result.count === 0) {
+      await ctx.reply(`ℹ️ No transactions found for *${result.label}*.`, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    let caption = `📁 *Transaction Export* (${result.label})\n📊 ${result.count} transactions · ${Math.round(result.bytes / 1024)} KB`;
+    if (period === 'this_month') {
+      caption += `\n\n💡 _Tip: You can export any range, e.g. /export Jan - March, /export Jan - Dec, or /export 12th Jan - 5th March_`;
+    }
+
+    await ctx.replyWithDocument(new InputFile(result.buffer, result.filename), {
+      caption,
+      parse_mode: 'Markdown',
+    });
   } catch (err) {
     stopTyping();
     const message = err instanceof Error ? err.message : String(err);

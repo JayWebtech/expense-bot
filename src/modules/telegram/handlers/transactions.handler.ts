@@ -15,6 +15,10 @@ export async function handleIncome(ctx: BotContext): Promise<void> {
   await listTransactions(ctx, 'INCOME', 'Recent Income');
 }
 
+function escapeMarkdown(text: string): string {
+  return text.replace(/[_*`\[\]]/g, '\\$&');
+}
+
 async function listTransactions(ctx: BotContext, type: 'EXPENSE' | 'INCOME', title: string): Promise<void> {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
@@ -48,7 +52,7 @@ async function listTransactions(ctx: BotContext, type: 'EXPENSE' | 'INCOME', tit
       const icon = tx.category ? (CATEGORY_ICONS[tx.category.name] ?? '📌') : '📌';
       const dateStr = formatDateInTz(tx.transactionDate, tz, 'MMM d');
       text += `${icon} ${tx.category?.name ?? 'Uncategorized'} — \`${formatMoney(tx.amountMinor, currency)}\`\n`;
-      text += `    _${tx.description}_ · ${dateStr}\n\n`;
+      text += `    _${escapeMarkdown(tx.description)}_ · ${dateStr}\n\n`;
     }
 
     if (total > 10) text += `_Showing 10 of ${total}. Use /report for a full export._`;

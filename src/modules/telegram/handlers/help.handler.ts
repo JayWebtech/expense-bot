@@ -22,11 +22,11 @@ export async function handleHelp(ctx: BotContext): Promise<void> {
     `• _Show me my spending by category_\n\n` +
     `*Commands:*\n` +
     `/balance — Current balance\n` +
-    `/summary — Monthly summary\n` +
+    `/summary — Monthly summary (e.g. /summary Jan - March)\n` +
     `/expenses — Recent expenses\n` +
     `/income — Recent income\n` +
-    `/report — Generate PDF report\n` +
-    `/export — Export as CSV\n` +
+    `/report [range] — PDF report (e.g. /report Jan - March, /report 12th Jan - 5th March)\n` +
+    `/export [range] — Export CSV (e.g. /export Jan - Dec, /export 12th Jan - 5th March)\n` +
     `/categories — Manage categories\n` +
     `/budget — View/set budgets\n` +
     `/reminders — Manage reminders\n` +
@@ -37,6 +37,7 @@ export async function handleHelp(ctx: BotContext): Promise<void> {
     `*Tips:*\n` +
     `• I understand k = ₦1,000 (e.g. "5k" = ₦5,000)\n` +
     `• Dates like "yesterday", "last Friday" work naturally\n` +
+    `• Export any range: "export Jan - March", "export Jan - Dec", or "export 12th Jan - 5th March"\n` +
     `• I detect duplicate transactions automatically`,
     {
       parse_mode: 'Markdown',
